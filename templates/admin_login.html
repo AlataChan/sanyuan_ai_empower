@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理登录 · 环境公益AI需求调研</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="header">
+  <div class="container">
+    <h1>管理后台登录</h1>
+  </div>
+</header>
+<div class="container">
+  <div class="admin-login-card">
+    {% if error %}
+    <div class="error-msg">{{ error }}</div>
+    {% endif %}
+    <form method="POST" action="/admin/login">
+      <div class="field">
+        <label class="q-label">管理员密码</label>
+        <input type="password" name="password" class="input" placeholder="请输入密码" required autofocus>
+      </div>
+      <button type="submit" class="btn-submit">登录</button>
+    </form>
+    <p style="text-align:center;margin-top:16px;font-size:14px;color:#888;">
+      默认密码请在部署后通过环境变量修改
+    </p>
+  </div>
+</div>
+</body>
+</html>

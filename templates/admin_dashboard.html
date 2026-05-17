@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 · 环境公益AI需求调研</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="header header-admin">
+  <div class="container">
+    <h1>管理后台</h1>
+    <div class="admin-nav">
+      <span>共 <strong>{{ total }}</strong> 条回复</span>
+      <a href="/admin/export" class="btn-link">导出 CSV</a>
+      <a href="/stats" class="btn-link">公开统计页</a>
+      <a href="/admin/logout" class="btn-link btn-link-danger">退出</a>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+{% if stats.ready %}
+<section class="stats-section">
+  <h2>统计概览</h2>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-number stat-number-alt">{{ stats.total }}</div><div class="stat-label">总回复数</div></div>
+    {% set q3a_top = stats.rating_results['3a'][0] if stats.rating_results['3a'] else none %}
+    {% if q3a_top %}
+    <div class="stat-card"><div class="stat-number" style="font-size:20px;color:var(--olive);">{{ q3a_top.label }}</div><div class="stat-label-sm">最高需求 AI 能力 ({{ q3a_top.avg }}分)</div></div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="stats-section">
+  <h2>回复列表（最新在前）</h2>
+  <div class="table-wrapper">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>时间</th>
+        <th>机构</th>
+        <th>角色</th>
+        <th>注册类型</th>
+        <th>年限</th>
+        <th>人数</th>
+        <th>数字化</th>
+        <th>AI熟悉度</th>
+        <th>付费意愿</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in responses %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.created_at }}</td>
+        <td>{{ r.q1_org_name[:20] if r.q1_org_name else '-' }}</td>
+        <td>{{ r.q2_role or '-' }}</td>
+        <td>{{ r.q3_reg_type or '-' }}</td>
+        <td>{{ r.q4_years or '-' }}</td>
+        <td>{{ r.q5_staff or '-' }}</td>
+        <td>{{ r.q9_digital_level or '-' }}</td>
+        <td>{{ r.q10_ai_familiarity or '-' }}</td>
+        <td>{{ r.q17_payment or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

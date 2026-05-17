@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>调研统计 · 环境公益AI需求</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="header header-stats">
+  <div class="container">
+    <h1>调研实时统计</h1>
+    <p class="subtitle">以下数据来自所有参与调研的环保公益机构（仅展示聚合统计，不暴露任何单独机构信息）</p>
+  </div>
+</header>
+
+<div class="container">
+
+{% if thanks %}
+<div class="thanks-banner">
+  <span class="thanks-icon">&#10003;</span>
+  <div>
+    <strong>提交成功！感谢您的参与。</strong><br>
+    以下是以填报的所有机构的统计结果。数据实时更新。
+  </div>
+</div>
+{% endif %}
+
+{% if not stats.ready %}
+<div class="empty-state">
+  <p>还没有机构提交问卷。</p>
+  <a href="/" class="btn-link">去填写问卷 →</a>
+</div>
+{% else %}
+
+<div class="stats-summary">
+  <div class="stat-card">
+    <div class="stat-number stat-number-alt">{{ stats.total }}</div>
+    <div class="stat-label">已参与机构</div>
+  </div>
+</div>
+
+<!-- ════════ 词云 ════════ -->
+{% if stats.word_cloud %}
+<section class="stats-section">
+  <h2>机构最想解决的问题 · 词云</h2>
+  <p class="section-desc">来自第 18 题开放回答（自动分词，字号越大 = 提及次数越多）</p>
+  <div class="wordcloud">
+    {% for word in stats.word_cloud[:60] %}
+    {% set size = [14, 16, 18, 22, 28, 36, 48] %}
+    {% set idx = [0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6] %}
+    {% set si = idx[word.weight] if word.weight < idx|length else 6 %}
+    <span class="wc-word" style="font-size:{{ size[si] }}px; opacity:{{ 0.4 + (si * 0.1) }}">{{ word.text }}</span>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ════════ AI 能力需求 TOP 排行 ════════ -->
+<section class="stats-section">
+  <h2>AI 能力需求热度排行</h2>
+  <p class="section-desc">评分均值越高 = 需求越强（1-5 分）</p>
+
+  {% for cat_key, cat_name in [('3a','内容生成类'), ('3b','数据处理类'), ('3c','运营管理类'), ('3d','环保专业类')] %}
+  <div class="ranking-group">
+    <h3>{{ cat_name }}</h3>
+    <ol class="ranking-list">
+      {% for item in stats.rating_results[cat_key][:5] %}
+      <li>
+        <span class="rank-label">{{ item.label }}</span>
+        <span class="rank-bar-bg">
+          <span class="rank-bar" style="width:{{ (item.avg / 5 * 100)|int }}%"></span>
+        </span>
+        <span class="rank-score">{{ item.avg }} 分</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endfor %}
+</section>
+
+<!-- ════════ 知识库需求 TOP 排行 ════════ -->
+<section class="stats-section">
+  <h2>知识库需求热度排行</h2>
+  <p class="section-desc">评分均值越高 = 需求越强（1-5 分）</p>
+
+  {% for cat_key, cat_name in [('4a','通用公益知识库'), ('4b','环保领域专属知识库')] %}
+  <div class="ranking-group">
+    <h3>{{ cat_name }}</h3>
+    <ol class="ranking-list">
+      {% for item in stats.rating_results[cat_key][:5] %}
+      <li>
+        <span class="rank-label">{{ item.label }}</span>
+        <span class="rank-bar-bg">
+          <span class="rank-bar" style="width:{{ (item.avg / 5 * 100)|int }}%"></span>
+        </span>
+        <span class="rank-score">{{ item.avg }} 分</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endfor %}
+</section>
+
+<!-- ════════ 痛点分布饼图 ════════ -->
+<section class="stats-section">
+  <h2>最大效率瓶颈分布</h2>
+  <p class="section-desc">各机构日常工作中最耗时的事项</p>
+  {% set has_pain = stats.pain_data | selectattr('count', 'gt', 0) | list | length > 0 %}
+  {% if has_pain %}
+  <div class="chart-container">
+    <canvas id="painChart"></canvas>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding:32px 20px;">
+    <p style="font-size:15px;">暂无数据 — 待更多机构提交后自动生成</p>
+  </div>
+  {% endif %}
+</section>
+
+<!-- ════════ AI 熟悉度 ════════ -->
+{% if stats.ai_fam_data %}
+<section class="stats-section">
+  <h2>AI 工具熟悉程度分布</h2>
+  <div class="chart-container chart-sm">
+    <canvas id="aiFamChart"></canvas>
+  </div>
+</section>
+{% endif %}
+
+<!-- ════════ 数字化水平 ════════ -->
+{% if stats.dig_data %}
+<section class="stats-section">
+  <h2>数字化成熟度分布</h2>
+  <div class="chart-container chart-sm">
+    <canvas id="digChart"></canvas>
+  </div>
+</section>
+{% endif %}
+
+<!-- ════════ 底部 ════════ -->
+<section class="submit-section">
+  <a href="/" class="btn-submit" style="text-decoration:none;display:inline-block;">我也要填写 →</a>
+  <p class="footer-info">
+    数据实时更新 · 仅展示聚合统计<br>
+    元公益（三元工作室）· 155266645@qq.com
+  </p>
+</section>
+
+{% endif %}
+</div>
+
+{% if stats.ready %}
+<script>
+// Pain points pie chart
+(function() {
+  const data = {{ stats.pain_data | tojson }};
+  const labels = data.filter(d => d.count > 0).map(d => d.label);
+  const values = data.filter(d => d.count > 0).map(d => d.count);
+  const colors = ['#4CAF50','#2196F3','#FF9800','#E91E63','#9C27B0','#00BCD4','#FF5722','#607D8B'];
+  if (labels.length) {
+    new Chart(document.getElementById('painChart'), {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors.slice(0, labels.length),
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 12, font: { size: 13 } } }
+        }
+      }
+    });
+  }
+})();
+
+{% if stats.ai_fam_data %}
+(function() {
+  const data = {{ stats.ai_fam_data | tojson }};
+  new Chart(document.getElementById('aiFamChart'), {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [{
+        label: '机构数',
+        data: data.map(d => d.count),
+        backgroundColor: '#2196F3',
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { stepSize: 1 } } }
+    }
+  });
+})();
+{% endif %}
+
+{% if stats.dig_data %}
+(function() {
+  const data = {{ stats.dig_data | tojson }};
+  new Chart(document.getElementById('digChart'), {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [{
+        label: '机构数',
+        data: data.map(d => d.count),
+        backgroundColor: '#4CAF50',
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { stepSize: 1 } } }
+    }
+  });
+})();
+{% endif %}
+</script>
+{% endif %}
+</body>
+</html>
