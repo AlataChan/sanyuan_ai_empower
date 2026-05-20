@@ -54,6 +54,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT DEFAULT (datetime('now','localtime')),
+            contact_email TEXT DEFAULT '',
+            contact_wechat TEXT DEFAULT '',
 
             -- Module 1: Basic Info
             q1_org_name TEXT DEFAULT '',
@@ -143,12 +145,26 @@ def init_db():
         );
 
     """)
+    ensure_response_columns(conn)
     conn.execute(
         "INSERT OR IGNORE INTO admins (id, password_hash) VALUES (1, ?)",
         (ADMIN_PASSWORD_HASH,),
     )
     conn.commit()
     conn.close()
+
+
+def ensure_response_columns(conn):
+    existing = {
+        row[1] for row in conn.execute("PRAGMA table_info(responses)").fetchall()
+    }
+    migrations = {
+        "contact_email": "TEXT DEFAULT ''",
+        "contact_wechat": "TEXT DEFAULT ''",
+    }
+    for column, definition in migrations.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE responses ADD COLUMN {column} {definition}")
 
 
 init_db()
@@ -349,6 +365,7 @@ async def submit_survey(request: Request):
 
     conn = get_db()
     cols = [
+        "contact_email", "contact_wechat",
         "q1_org_name", "q2_role", "q3_reg_type", "q4_years", "q5_staff",
         "q6_fields", "q7_devices", "q8_network", "q9_digital_level",
         "q10_ai_familiarity", "q11_data_storage", "q12_pain_points",
@@ -372,6 +389,7 @@ async def submit_survey(request: Request):
     ]
 
     vals = [
+        get("contact_email"), get("contact_wechat"),
         get("q1_org_name"), get("q2_role"), get("q3_reg_type"),
         get("q4_years"), get("q5_staff"),
         get_json("q6_fields"), get_json("q7_devices"), get("q8_network"),

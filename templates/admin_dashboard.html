@@ -44,6 +44,8 @@
         <th>ID</th>
         <th>时间</th>
         <th>机构</th>
+        <th>邮箱号</th>
+        <th>微信号</th>
         <th>角色</th>
         <th>注册类型</th>
         <th>年限</th>
@@ -59,6 +61,8 @@
         <td>{{ r.id }}</td>
         <td>{{ r.created_at }}</td>
         <td>{{ r.q1_org_name[:20] if r.q1_org_name else '-' }}</td>
+        <td>{{ r.contact_email or '-' }}</td>
+        <td>{{ r.contact_wechat or '-' }}</td>
         <td>{{ r.q2_role or '-' }}</td>
         <td>{{ r.q3_reg_type or '-' }}</td>
         <td>{{ r.q4_years or '-' }}</td>
