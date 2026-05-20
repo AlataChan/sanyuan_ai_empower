@@ -15,15 +15,26 @@ from datetime import datetime
 from pathlib import Path
 
 import jieba
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 # ── App Setup ──────────────────────────────────────────────
 
 BASE = Path(__file__).parent
-DB_PATH = BASE / "survey.db"
+
+
+def resolve_db_path(base=BASE, data_dir=Path("/data"), env=os.environ):
+    explicit_path = env.get("SURVEY_DB_PATH")
+    if explicit_path:
+        return Path(explicit_path)
+    if data_dir.exists():
+        return data_dir / "survey.db"
+    return Path(base) / "survey.db"
+
+
+DB_PATH = resolve_db_path()
 ADMIN_PASSWORD_HASH = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"  # default: "password"
 
 app = FastAPI(title="环境公益AI需求调研")
@@ -42,6 +53,7 @@ def render(name: str, **kwargs) -> HTMLResponse:
 # ── Database ───────────────────────────────────────────────
 
 def get_db():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -352,6 +364,11 @@ async def survey_form(request: Request):
     return render("survey.html", request=request)
 
 
+@app.get("/QRcode.png")
+async def qrcode_image():
+    return FileResponse(BASE / "QRcode.png", media_type="image/png")
+
+
 @app.post("/submit")
 async def submit_survey(request: Request):
     form = await request.form()
@@ -487,7 +504,15 @@ async def admin_dashboard(request: Request):
     total = len(rows)
     conn.close()
     stats = compute_stats()
-    return render("admin_dashboard.html", request=request, responses=rows, total=total, stats=stats)
+    imported = request.query_params.get("imported", "0") == "1"
+    return render(
+        "admin_dashboard.html",
+        request=request,
+        responses=rows,
+        total=total,
+        stats=stats,
+        imported=imported,
+    )
 
 
 @app.get("/admin/export")
@@ -513,6 +538,34 @@ async def admin_export(request: Request):
         media_type="text/csv; charset=utf-8-sig",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@app.post("/admin/import")
+async def admin_import(request: Request, csv_file: UploadFile = File(...)):
+    if not check_admin(request):
+        return RedirectResponse(url="/admin")
+
+    content = await csv_file.read()
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+
+    conn = get_db()
+    db_columns = [
+        row[1] for row in conn.execute("PRAGMA table_info(responses)").fetchall()
+    ]
+    for row in reader:
+        cols = [col for col in db_columns if col in row]
+        if not row.get("id") and "id" in cols:
+            cols.remove("id")
+        if not cols:
+            continue
+        placeholders = ",".join(["?"] * len(cols))
+        sql = f"INSERT OR IGNORE INTO responses ({','.join(cols)}) VALUES ({placeholders})"
+        conn.execute(sql, [row[col] for col in cols])
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse(url="/admin/dashboard?imported=1", status_code=303)
 
 
 @app.get("/admin/logout")
